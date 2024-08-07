@@ -7,11 +7,16 @@ import {
   Body,
   Param,
   Query,
+  Res,
+  HttpStatus,
+  ConflictException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { ClientesService } from './clientes.service';
 import { CreateClienteDto } from '../dto/create-cliente.dto';
 import { UpdateClienteDto } from '../dto/update-cliente.dto';
+import { Response } from 'express';
 
 @ApiTags('clientes')
 @Controller('clientes')
@@ -55,25 +60,71 @@ export class ClientesController {
   @ApiBody({ type: CreateClienteDto })
   @ApiResponse({ status: 201, description: 'El cliente ha sido creado.' })
   @Post()
-  create(@Body() createClienteDto: CreateClienteDto) {
-    return this.clientesService.create(createClienteDto);
+  async create(
+    @Body() createClienteDto: CreateClienteDto,
+    @Res() res: Response,
+  ) {
+    try {
+      await this.clientesService.create(createClienteDto);
+      return res.status(HttpStatus.CREATED).json({
+        statusCode: HttpStatus.CREATED,
+        message: 'El cliente ha sido creado.',
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        return res.status(HttpStatus.CONFLICT).json({
+          statusCode: HttpStatus.CONFLICT,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   }
 
   @ApiOperation({ summary: 'Actualizar un cliente por RFC' })
   @ApiBody({ type: UpdateClienteDto })
   @ApiResponse({ status: 200, description: 'El cliente ha sido actualizado.' })
   @Put(':rfc')
-  update(
+  async update(
     @Param('rfc') rfc: string,
     @Body() updateClienteDto: UpdateClienteDto,
+    @Res() res: Response,
   ) {
-    return this.clientesService.update(rfc, updateClienteDto);
+    try {
+      await this.clientesService.update(rfc, updateClienteDto);
+      return res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Los datos del cliente han sido modificados exitosamente.',
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   }
 
   @ApiOperation({ summary: 'Eliminar un cliente por RFC' })
   @ApiResponse({ status: 200, description: 'El cliente ha sido eliminado.' })
   @Delete(':rfc')
-  remove(@Param('rfc') rfc: string) {
-    return this.clientesService.remove(rfc);
+  async remove(@Param('rfc') rfc: string, @Res() res: Response) {
+    try {
+      await this.clientesService.remove(rfc);
+      return res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'El cliente ha sido eliminado.',
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
   }
 }
