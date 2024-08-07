@@ -47,7 +47,6 @@ export class ClientesService {
     const existingCliente = await this.clienteRepository.findOne({
       where: { rfc },
     });
-    console.log(existingCliente);
     if (existingCliente) {
       throw new ConflictException('Cliente ya existente');
     }
