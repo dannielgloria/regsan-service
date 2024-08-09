@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DatosTecnicos } from '../entities/datos-tecnicos.entity';
@@ -22,10 +22,14 @@ export class DatosTecnicosService {
   }
 
   async findByTramiteId(tramiteId: number): Promise<DatosTecnicos[]> {
-    return this.datosTecnicosRepository.find({
+    const datosTecnicos = await this.datosTecnicosRepository.find({
       where: { procedure_id: tramiteId },
       relations: ['tramite'],
     });
+    if (datosTecnicos.length === 0) {
+      throw new NotFoundException('Datos tecnicos no encontrados');
+    }
+    return datosTecnicos;
   }
 
   async create(datosTecnicos: DatosTecnicos): Promise<DatosTecnicos> {
@@ -36,11 +40,25 @@ export class DatosTecnicosService {
   }
 
   async update(id: number, datosTecnicos: DatosTecnicos): Promise<void> {
-    await this.datosTecnicosRepository.update(id, datosTecnicos);
+    const existingTecnicalData = await this.datosTecnicosRepository.findOne({
+      where: { id },
+    });
+    if (existingTecnicalData === null) {
+      throw new NotFoundException('Datos tecnicos no existentes');
+    } else {
+      await this.datosTecnicosRepository.update(id, datosTecnicos);
+    }
   }
 
   async remove(id: number): Promise<void> {
-    await this.datosTecnicosRepository.delete(id);
+    const existingTecnicalData = await this.datosTecnicosRepository.findOne({
+      where: { id },
+    });
+    if (existingTecnicalData === null) {
+      throw new NotFoundException('Datos tecnicos no existentes');
+    } else {
+      await this.datosTecnicosRepository.delete(id);
+    }
   }
 
   private async sendEmail(datosTecnicos: DatosTecnicos) {
@@ -55,16 +73,18 @@ export class DatosTecnicosService {
     });
 
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.hostinger.com',
+      port: 587, // o 465 para SSL
+      secure: false, // true para puerto 465, false para otros puertos
       auth: {
-        user: 'your-email@gmail.com',
-        pass: 'your-email-password',
+        user: 'info@deligrano.com',
+        pass: '2133010323Gl?',
       },
     });
-
+    console.log(datosTecnicos);
     // Email to the client
     const clientMailOptions = {
-      from: 'your-email@gmail.com',
+      from: 'info@deligrano.com',
       to: client.email,
       subject: 'Nuevo Dato Técnico Registrado',
       text: `Hola ${client.business_name},\n\nSe ha registrado un nuevo dato técnico para el trámite con ID ${tramite.id}.\n\nInformación del nuevo dato técnico: ${JSON.stringify(datosTecnicos)}\n\nDatos técnicos anteriores:\n${previousDatosTecnicos.map((dt) => JSON.stringify(dt)).join('\n')}`,
