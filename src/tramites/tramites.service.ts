@@ -46,9 +46,6 @@ export class TramitesService {
       where: { status },
       relations: ['client', 'datosTecnicos'],
     });
-    console.log('MONO');
-    console.log(client);
-    console.log(status);
     if (client.length === 0) {
       throw new NotFoundException('Estatus no encontrado');
     }
