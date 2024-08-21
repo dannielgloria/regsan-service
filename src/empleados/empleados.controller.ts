@@ -110,4 +110,33 @@ export class EmpleadosController {
       throw error;
     }
   }
+
+  @ApiOperation({ summary: 'Enviar un correo para recuperar la contraseña' })
+  @ApiBody({ schema: { example: { email: 'empleado@example.com' } } })
+  @ApiResponse({
+    status: 200,
+    description: 'Correo de recuperación de contraseña enviado.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'El email proporcionado no es válido o no existe.',
+  })
+  @Post('recuperar-password')
+  async recuperarPassword(@Body('email') email: string, @Res() res: Response) {
+    try {
+      await this.empleadosService.recuperarPassword(email);
+      return res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Correo de recuperación de contraseña enviado.',
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+  }
 }
