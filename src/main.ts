@@ -5,6 +5,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.enableCors();
+
   const config = new DocumentBuilder()
     .setTitle('Regsan Service API')
     .setDescription('API documentation for Regsan Service')
