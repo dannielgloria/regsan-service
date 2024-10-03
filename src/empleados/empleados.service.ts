@@ -105,7 +105,7 @@ export class EmpleadosService {
         <p>A continuación te proporcionamos tu nueva contraseña temporal:</p>
         <p style="font-size: 1.5em; font-weight: bold;">${pwd}</p>
         <br>
-        <p>Te recomendamos que accedas a tu cuenta lo antes posible y cambies esta contraseña por una de tu elección.</p>
+        <p>Te recomendamos que acudas con un administrador lo antes posible para que cambies esta contraseña por una de tu elección.</p>
         <p>Si no has solicitado esta recuperación de contraseña, por favor contacta a nuestro equipo de soporte inmediatamente.</p>
         <br>
         <p>Gracias,</p>
