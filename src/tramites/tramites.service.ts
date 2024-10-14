@@ -3,11 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tramite } from '../entities/tramite.entity';
 import { Cliente } from '../entities/cliente.entity';
-import { DatosTecnicos } from '../entities/datos-tecnicos.entity';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
@@ -17,13 +17,11 @@ export class TramitesService {
     private readonly tramiteRepository: Repository<Tramite>,
     @InjectRepository(Cliente)
     private readonly clienteRepository: Repository<Cliente>,
-    @InjectRepository(DatosTecnicos)
-    private readonly datosTecnicosRepository: Repository<DatosTecnicos>,
   ) {}
 
   async findAll(): Promise<Tramite[]> {
     return this.tramiteRepository.find({
-      relations: ['client', 'datosTecnicos'],
+      relations: ['client'],
     });
   }
 
@@ -36,7 +34,7 @@ export class TramitesService {
     } else {
       return this.tramiteRepository.find({
         where: { client_rfc: client.rfc },
-        relations: ['client', 'datosTecnicos'],
+        relations: ['client'],
       });
     }
   }
@@ -44,7 +42,7 @@ export class TramitesService {
   async findByStatus(status: string): Promise<Tramite[]> {
     const client = await this.tramiteRepository.find({
       where: { status },
-      relations: ['client', 'datosTecnicos'],
+      relations: ['client'],
     });
     if (client.length === 0) {
       throw new NotFoundException('Estatus no encontrado');
@@ -52,10 +50,10 @@ export class TramitesService {
     return client;
   }
 
-  async findById(id: number): Promise<Tramite> {
+  async findById(id: string): Promise<Tramite> {
     const tramite = await this.tramiteRepository.findOne({
       where: { id },
-      relations: ['client', 'datosTecnicos'],
+      relations: ['client'],
     });
     if (tramite === null) {
       throw new NotFoundException('Cliente no encontrado');
@@ -65,12 +63,21 @@ export class TramitesService {
   }
 
   async create(tramite: Tramite): Promise<Tramite> {
+    if (!tramite.id || tramite.id.trim() === '') {
+      tramite.id = uuidv4();
+    }
+    const existingTramite = await this.tramiteRepository.findOne({
+      where: { id: tramite.id },
+    });
+    if (existingTramite) {
+      throw new ConflictException('Trámite con ese ID ya existe');
+    }
     const newTramite = await this.tramiteRepository.save(tramite);
     await this.sendEmails(newTramite);
     return newTramite;
   }
 
-  async update(id: number, tramite: Tramite): Promise<void> {
+  async update(id: string, tramite: Tramite): Promise<void> {
     const existingTramite = await this.findById(id);
     if (!existingTramite) {
       throw new ConflictException('Tramite no existente');
@@ -78,12 +85,33 @@ export class TramitesService {
     await this.tramiteRepository.update(id, tramite);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     const existingTramite = await this.findById(id);
     if (!existingTramite) {
       throw new ConflictException('Tramite no existente');
     }
     await this.tramiteRepository.delete(id);
+  }
+
+  async updateTechnicalData(id: string, technicalData: string): Promise<void> {
+    const existingTramite = await this.findById(id);
+    if (!existingTramite) {
+      throw new ConflictException('Tramite no existente');
+    }
+
+    existingTramite.technical_data = technicalData;
+    await this.tramiteRepository.save(existingTramite);
+
+    await this.sendTechnicalDataUpdateEmail(existingTramite);
+  }
+
+  async getTechnicalDataById(id: string): Promise<string> {
+    const existingTramite = await this.findById(id);
+    if (!existingTramite) {
+      throw new NotFoundException('Tramite no existente');
+    }
+
+    return existingTramite.technical_data;
   }
 
   private async sendEmails(tramite: Tramite) {
@@ -159,7 +187,7 @@ export class TramitesService {
           </tr>
           <tr>
             <td><strong>Proceso del trámite</strong></td>
-            <td>${tramite.process_description}</td>
+            <td>${tramite.technical_data}</td>
           </tr>
           <tr>
             <td><strong>Porcentaje de avance</strong></td>
@@ -199,5 +227,36 @@ export class TramitesService {
 
     await transporter.sendMail(clientMailOptions);
     await transporter.sendMail(danielMailOptions);
+  }
+
+  private async sendTechnicalDataUpdateEmail(tramite: Tramite) {
+    const client = await this.clienteRepository.findOne({
+      where: { rfc: tramite.client_rfc },
+    });
+
+    if (!client) return;
+
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.hostinger.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: 'info@deligrano.com',
+        pass: '2133010323Gl?',
+      },
+    });
+
+    const mailOptions = {
+      from: 'info@deligrano.com',
+      to: client.email,
+      subject: 'Actualización de datos técnicos',
+      html: `
+        <p>Hola ${client.contact_first_name} ${client.contact_last_name},</p>
+        <p>Se han actualizado los datos técnicos del trámite con ID ${tramite.id}.</p>
+        <p>Datos técnicos nuevos: ${tramite.technical_data}</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
   }
 }

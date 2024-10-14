@@ -1,18 +1,10 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
-  OneToMany,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
 import { Cliente } from './cliente.entity';
-import { DatosTecnicos } from './datos-tecnicos.entity';
 
 @Entity('procedures')
 export class Tramite {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn({ type: 'varchar', length: 255 })
+  id: string;
 
   @Column({ type: 'char', length: 13 })
   client_rfc: string;
@@ -51,8 +43,8 @@ export class Tramite {
   @Column({ type: 'varchar', length: 50 })
   status: string;
 
-  @Column({ type: 'varchar', length: 100 })
-  process_description: string;
+  @Column({ type: 'text' })
+  technical_data: string;
 
   @Column({ type: 'decimal', precision: 5, scale: 2 })
   completion_percentage: number;
@@ -75,6 +67,18 @@ export class Tramite {
   @Column({ type: 'text', nullable: true })
   additional_information: string;
 
-  @OneToMany(() => DatosTecnicos, (datosTecnicos) => datosTecnicos.tramite)
-  datosTecnicos: DatosTecnicos[];
+  @Column({ type: 'text' })
+  billing: string;
+
+  @Column({ type: 'text' })
+  payment_status: string;
+
+  @Column({ type: 'date' })
+  payment_date: Date;
+
+  @Column({ type: 'text' })
+  collection_notes: string;
+
+  @Column({ type: 'boolean', default: false })
+  sales_flag: boolean;
 }

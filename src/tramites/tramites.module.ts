@@ -5,10 +5,8 @@ import { TramitesService } from './tramites.service';
 import { TramitesController } from './tramites.controller';
 import { Tramite } from '../entities/tramite.entity';
 import { Cliente } from '../entities/cliente.entity';
-import { DatosTecnicos } from '../entities/datos-tecnicos.entity';
-
 @Module({
-  imports: [TypeOrmModule.forFeature([Tramite, Cliente, DatosTecnicos])],
+  imports: [TypeOrmModule.forFeature([Tramite, Cliente])],
   providers: [TramitesService],
   controllers: [TramitesController],
 })

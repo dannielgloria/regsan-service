@@ -11,8 +11,6 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { Cliente } from './entities/cliente.entity';
 import { Tramite } from './entities/tramite.entity';
 import { Empleado } from './entities/empleado.entity';
-import { DatosTecnicos } from './entities/datos-tecnicos.entity';
-import { DatosTecnicosModule } from './datos-tecnicos/datos-tecnicos.module';
 
 @Module({
   imports: [
@@ -29,7 +27,7 @@ import { DatosTecnicosModule } from './datos-tecnicos/datos-tecnicos.module';
       autoLoadEntities: true,
       synchronize: true, // Desactiva esto en producción
     }),
-    TypeOrmModule.forFeature([Cliente, Tramite, Empleado, DatosTecnicos]),
+    TypeOrmModule.forFeature([Cliente, Tramite, Empleado]),
     PassportModule,
     JwtModule.register({
       secret: 'w6RsrijEkQhpueSUKV+cuW7WJrAzlFDAMnzbFHJ2n4k=',
@@ -39,7 +37,6 @@ import { DatosTecnicosModule } from './datos-tecnicos/datos-tecnicos.module';
     ClientesModule,
     TramitesModule,
     EmpleadosModule,
-    DatosTecnicosModule,
   ],
   providers: [JwtStrategy],
 })

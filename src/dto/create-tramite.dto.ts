@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateTramiteDto {
+  @ApiProperty({ example: 'Id de tramite', description: 'Id' })
+  id: string;
+
   @ApiProperty({ example: 'ABC1234567890', description: 'RFC del cliente' })
   client_rfc: string;
 
@@ -50,10 +53,10 @@ export class CreateTramiteDto {
   status: string;
 
   @ApiProperty({
-    example: 'Descripción del Proceso',
-    description: 'Descripción del proceso',
+    example: 'Datos tencinos del tramite',
+    description: 'Datos tecnicos',
   })
-  process_description: string;
+  technical_data: string;
 
   @ApiProperty({ example: 75.5, description: 'Porcentaje de finalización' })
   completion_percentage: number;
