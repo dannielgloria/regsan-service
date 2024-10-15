@@ -20,6 +20,7 @@ import { Tramite } from '../entities/tramite.entity';
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { UpdateTechnicalDataDto } from 'src/dto/update-datos-tecnicos.dto';
+import { UpdateTramiteFacturacionDto } from 'src/dto/update-tramite-facturacion.dto';
 
 @ApiTags('tramites')
 @Controller('tramites')
@@ -255,6 +256,26 @@ export class TramitesController {
         });
       }
       throw error;
+    }
+  }
+
+  @Put('actualizar-facturacion/:id')
+  async updateTramiteData(
+    @Param('id') id: string,
+    @Body() updateTramiteDto: UpdateTramiteFacturacionDto,
+    @Res() res: Response,
+  ) {
+    try {
+      await this.tramitesService.updateTramiteData(id, updateTramiteDto);
+      return res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Los datos del trámite han sido actualizados exitosamente.',
+      });
+    } catch (error) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: error.message,
+      });
     }
   }
 }

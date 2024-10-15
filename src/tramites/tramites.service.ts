@@ -10,6 +10,7 @@ import { Tramite } from '../entities/tramite.entity';
 import { Cliente } from '../entities/cliente.entity';
 import * as nodemailer from 'nodemailer';
 import { EmpleadosService } from 'src/empleados/empleados.service';
+import { UpdateTramiteFacturacionDto } from 'src/dto/update-tramite-facturacion.dto';
 
 @Injectable()
 export class TramitesService {
@@ -129,6 +130,29 @@ export class TramitesService {
     await this.tramiteRepository.save(existingTramite);
 
     await this.sendInvoiceNotification(empleadosFacturacion, existingTramite);
+  }
+
+  async updateTramiteData(
+    id: string,
+    updateTramiteDto: UpdateTramiteFacturacionDto,
+  ): Promise<void> {
+    const existingTramite = await this.findById(id);
+    if (!existingTramite) {
+      throw new NotFoundException('Trámite no existente');
+    }
+
+    existingTramite.billing = updateTramiteDto.billing;
+    existingTramite.payment_status = updateTramiteDto.payment_status;
+    existingTramite.payment_date = updateTramiteDto.payment_date;
+    existingTramite.collection_notes = updateTramiteDto.collection_notes;
+
+    await this.tramiteRepository.save(existingTramite);
+
+    if (!existingTramite.client || !existingTramite.client.email) {
+      throw new NotFoundException('Cliente asociado no tiene un email válido');
+    }
+
+    await this.sendBillingUpdateEmail(existingTramite, existingTramite.client);
   }
 
   private async sendEmails(tramite: Tramite) {
@@ -313,6 +337,38 @@ export class TramitesService {
         <p>El equipo de REGSAN</p>
       `,
     };
+    await transporter.sendMail(mailOptions);
+  }
+
+  private async sendBillingUpdateEmail(
+    tramite: Tramite,
+    client: Cliente,
+  ): Promise<void> {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.hostinger.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: 'info@deligrano.com',
+        pass: '2133010323Gl?',
+      },
+    });
+
+    const mailOptions = {
+      from: 'info@deligrano.com',
+      to: client.email,
+      subject: `Actualización de facturación - Trámite ${tramite.id}`,
+      html: `
+        <p>Estimado ${client.business_name},</p>
+        <p>Le informamos que la información de facturación de su trámite con ID <strong>${tramite.id}</strong> ha sido actualizada.</p>
+        <p><strong>Estatus de pago:</strong> ${tramite.payment_status}</p>
+        <p>Por favor, revise la información actualizada en su cuenta y no dude en contactarnos si tiene alguna pregunta.</p>
+        <br>
+        <p>Atentamente,</p>
+        <p>El equipo de REGSAN</p>
+      `,
+    };
+
     await transporter.sendMail(mailOptions);
   }
 }
