@@ -125,4 +125,19 @@ export class EmpleadosService {
       () => caracteres[Math.floor(Math.random() * caracteres.length)],
     ).join('');
   }
+
+  async findFacturacionEmails(): Promise<string[]> {
+    const empleadosFacturacion = await this.empleadoRepository.find({
+      where: { role: 'Facturacion' },
+    });
+
+    if (empleadosFacturacion.length === 0) {
+      throw new NotFoundException(
+        'No se encontraron empleados con rol de Facturación',
+      );
+    }
+
+    const emails = empleadosFacturacion.map((empleado) => empleado.email);
+    return emails;
+  }
 }

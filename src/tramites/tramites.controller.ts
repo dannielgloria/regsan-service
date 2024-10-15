@@ -233,4 +233,28 @@ export class TramitesController {
       throw error;
     }
   }
+
+  @ApiOperation({ summary: 'Actualizar bandera de ventas de un trámite' })
+  @ApiResponse({
+    status: 200,
+    description: 'Se ha actualizado la bandera de ventas del trámite.',
+  })
+  @Put('ventas/:id')
+  async updateSalesFlag(@Param('id') id: string, @Res() res: Response) {
+    try {
+      await this.tramitesService.updateSalesFlag(id);
+      return res.status(HttpStatus.OK).json({
+        statusCode: HttpStatus.OK,
+        message: 'Se ha emitido la factura correspondiente al tramite',
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          statusCode: HttpStatus.NOT_FOUND,
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+  }
 }

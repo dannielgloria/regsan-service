@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Tramite } from '../entities/tramite.entity';
 import { Cliente } from '../entities/cliente.entity';
 import * as nodemailer from 'nodemailer';
+import { EmpleadosService } from 'src/empleados/empleados.service';
 
 @Injectable()
 export class TramitesService {
@@ -17,6 +18,7 @@ export class TramitesService {
     private readonly tramiteRepository: Repository<Tramite>,
     @InjectRepository(Cliente)
     private readonly clienteRepository: Repository<Cliente>,
+    private readonly empleadosService: EmpleadosService,
   ) {}
 
   async findAll(): Promise<Tramite[]> {
@@ -112,6 +114,21 @@ export class TramitesService {
     }
 
     return existingTramite.technical_data;
+  }
+
+  async updateSalesFlag(id: string): Promise<void> {
+    const existingTramite = await this.findById(id);
+    const empleadosFacturacion =
+      await this.empleadosService.findFacturacionEmails();
+    if (!existingTramite) {
+      throw new NotFoundException('Trámite no existente');
+    }
+
+    existingTramite.sales_flag = true;
+
+    await this.tramiteRepository.save(existingTramite);
+
+    await this.sendInvoiceNotification(empleadosFacturacion, existingTramite);
   }
 
   private async sendEmails(tramite: Tramite) {
@@ -251,12 +268,51 @@ export class TramitesService {
       to: client.email,
       subject: 'Actualización de datos técnicos',
       html: `
-        <p>Hola ${client.contact_first_name} ${client.contact_last_name},</p>
+        <p>Hola <strong>${client.contact_first_name} ${client.contact_last_name}</strong>,</p>
         <p>Se han actualizado los datos técnicos del trámite con ID ${tramite.id}.</p>
         <p>Datos técnicos nuevos: ${tramite.technical_data}</p>
       `,
     };
 
+    await transporter.sendMail(mailOptions);
+  }
+  async sendInvoiceNotification(
+    emails: string[],
+    tramite: Tramite,
+  ): Promise<void> {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.hostinger.com',
+      port: 587, // o 465 para SSL
+      secure: false, // true para puerto 465, false para otros puertos
+      auth: {
+        user: 'info@deligrano.com',
+        pass: '2133010323Gl?',
+      },
+    });
+
+    const mailOptions = {
+      from: 'info@deligrano.com',
+      to: emails,
+      subject: 'Notificación de emisión de factura',
+      html: `
+        <p>Estimado equipo de Facturación,</p>
+        <p>Se ha emitido una nueva factura correspondiente al trámite con ID: <strong>${tramite.id}</strong>, asociado al cliente <strong>${tramite.client.business_name}</strong>.</p>
+        <p>Les solicitamos amablemente dar seguimiento a este trámite lo antes posible.</p>
+        <p>Información del trámite:</p>
+        <ul>
+          <li><strong>ID del Trámite:</strong> ${tramite.id}</li>
+          <li><strong>Cliente:</strong> ${tramite.client.business_name}</li>
+          <li><strong>RFC del Cliente:</strong> ${tramite.client_rfc}</li>
+          <li><strong>Fecha de Inicio:</strong> ${tramite.start_date}</li>
+          <li><strong>Fecha de Término:</strong> ${tramite.end_date}</li>
+          <li><strong>Estatus del Trámite:</strong> ${tramite.status}</li>
+        </ul>
+        <p>Gracias por su atención.</p>
+        <br>
+        <p>Atentamente,</p>
+        <p>El equipo de REGSAN</p>
+      `,
+    };
     await transporter.sendMail(mailOptions);
   }
 }
