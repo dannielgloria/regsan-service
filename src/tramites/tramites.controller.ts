@@ -278,4 +278,11 @@ export class TramitesController {
       });
     }
   }
+
+  @ApiOperation({ summary: 'Obtener un trámite por ID' })
+  @ApiResponse({ status: 200, description: 'Trámite encontrado por ID.' })
+  @Get('tramites-rfc/:rfc')
+  findByRFC(@Param('rfc') rfc: string) {
+    return this.tramitesService.findByRFC(rfc);
+  }
 }

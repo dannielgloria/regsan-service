@@ -36,6 +36,19 @@ export class TramitesService {
     return this.tramiteRepository.find({ relations: ['client'] });
   }
 
+  async findByRFC(client_rfc: string): Promise<Tramite[]> {
+    const tramites = await this.tramiteRepository.find({
+      where: { client_rfc },
+      relations: ['client'],
+    });
+
+    if (tramites.length === 0) {
+      throw new NotFoundException('No se encontraron trámites para este RFC');
+    }
+
+    return tramites;
+  }
+
   async findByClientBusinessName(businessName: string): Promise<Tramite[]> {
     const client = await this.clienteRepository.findOne({
       where: { business_name: businessName },
