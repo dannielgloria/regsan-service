@@ -140,9 +140,12 @@ export class TramitesService {
     });
     if (!client) return;
 
+    const empleadosSales = await this.empleadosService.findSalesEmails();
+
     const [clientMailOptions, danielMailOptions] = this.generateEmailOptions(
       client,
       tramite,
+      empleadosSales,
     );
 
     await Promise.all([
@@ -151,7 +154,16 @@ export class TramitesService {
     ]);
   }
 
-  private generateEmailOptions(client: Cliente, tramite: Tramite) {
+  async getTechnicalDataById(id: string): Promise<string> {
+    const tramite = await this.findById(id);
+    return tramite.technical_data;
+  }
+
+  private generateEmailOptions(
+    client: Cliente,
+    tramite: Tramite,
+    emails: string[],
+  ) {
     const clientMailOptions = {
       from: 'info@deligrano.com',
       to: client.email,
@@ -235,14 +247,14 @@ export class TramitesService {
         </table>`,
     };
 
-    const danielMailOptions = {
+    const salesMailOptions = {
       from: 'info@deligrano.com',
-      to: 'danniel.gloria@gmail.com',
+      to: emails,
       subject: 'Nuevo Trámite Registrado',
       text: `Se ha registrado un nuevo trámite para el cliente ${client.business_name} con ID de tramite ${tramite.id}.`,
     };
 
-    return [clientMailOptions, danielMailOptions];
+    return [clientMailOptions, salesMailOptions];
   }
 
   private async sendTechnicalDataUpdateEmail(tramite: Tramite) {

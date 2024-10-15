@@ -11,6 +11,16 @@ import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmpleadosService {
+  private readonly transporter = nodemailer.createTransport({
+    host: 'smtp.hostinger.com',
+    port: 587,
+    secure: false, // true para puerto 465, false para otros puertos
+    auth: {
+      user: 'info@deligrano.com',
+      pass: '2133010323Gl?',
+    },
+  });
+
   constructor(
     @InjectRepository(Empleado)
     private readonly empleadoRepository: Repository<Empleado>,
@@ -35,34 +45,21 @@ export class EmpleadosService {
   }
 
   async create(empleado: Empleado): Promise<Empleado> {
-    const existingEmpleado = await this.findByEmail(empleado.email);
-    if (existingEmpleado) {
-      throw new ConflictException('Empleado ya existe');
-    }
-
-    const salt = await bcrypt.genSalt();
-    empleado.password = await bcrypt.hash(empleado.password, salt);
+    await this.ensureEmailDoesNotExist(empleado.email);
+    empleado.password = await this.hashPassword(empleado.password);
     return this.empleadoRepository.save(empleado);
   }
 
   async update(id: string, empleado: Empleado): Promise<void> {
-    const existingEmpleado = await this.findOne(id);
-    if (!existingEmpleado) {
-      throw new NotFoundException('Empleado no encontrado');
-    }
-
-    const salt = await bcrypt.genSalt();
+    await this.findOne(id); // Verifica si el empleado existe
     if (empleado.password) {
-      empleado.password = await bcrypt.hash(empleado.password, salt);
+      empleado.password = await this.hashPassword(empleado.password);
     }
     await this.empleadoRepository.update({ phone_number: id }, empleado);
   }
 
   async remove(id: string): Promise<void> {
-    const existingEmpleado = await this.findOne(id);
-    if (!existingEmpleado) {
-      throw new NotFoundException('Empleado no encontrado');
-    }
+    await this.findOne(id); // Verifica si el empleado existe
     await this.empleadoRepository.delete({ phone_number: id });
   }
 
@@ -71,53 +68,51 @@ export class EmpleadosService {
     if (!empleado) {
       throw new NotFoundException('El email proporcionado no existe.');
     }
+
     const contrasenaTemporal = await this.generarContrasenaTemporal();
-    const salt = await bcrypt.genSalt();
-    empleado.password = await bcrypt.hash(contrasenaTemporal, salt);
+    empleado.password = await this.hashPassword(contrasenaTemporal);
 
     await this.empleadoRepository.save(empleado);
-
     await this.sendPasswordRecoveryEmail(empleado, contrasenaTemporal);
   }
 
-  async sendPasswordRecoveryEmail(
+  private async hashPassword(password: string): Promise<string> {
+    const salt = await bcrypt.genSalt();
+    return bcrypt.hash(password, salt);
+  }
+
+  private async ensureEmailDoesNotExist(email: string): Promise<void> {
+    const existingEmpleado = await this.findByEmail(email);
+    if (existingEmpleado) {
+      throw new ConflictException('Empleado ya existe');
+    }
+  }
+
+  private async sendPasswordRecoveryEmail(
     empleado: Empleado,
     pwd: string,
   ): Promise<void> {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 587, // o 465 para SSL
-      secure: false, // true para puerto 465, false para otros puertos
-      auth: {
-        user: 'info@deligrano.com',
-        pass: '2133010323Gl?',
-      },
-    });
-
-    const passwordRecoveryEmail = {
+    const emailOptions = {
       from: 'info@deligrano.com',
       to: empleado.email,
       subject: 'Recuperación de tu contraseña',
       html: `
         <p>Hola ${empleado.first_name} ${empleado.last_name},</p>
-        <br>
-        <p>Recientemente solicitaste la recuperación de tu contraseña en la aplicacion de REGSAN.</p>
-        <p>A continuación te proporcionamos tu nueva contraseña temporal:</p>
+        <p>Recientemente solicitaste la recuperación de tu contraseña en la aplicación REGSAN.</p>
+        <p>Tu nueva contraseña temporal es:</p>
         <p style="font-size: 1.5em; font-weight: bold;">${pwd}</p>
-        <br>
-        <p>Te recomendamos que acudas con un administrador lo antes posible para que cambies esta contraseña por una de tu elección.</p>
-        <p>Si no has solicitado esta recuperación de contraseña, por favor contacta a nuestro equipo de soporte inmediatamente.</p>
+        <p>Te recomendamos cambiar esta contraseña lo antes posible.</p>
+        <p>Si no solicitaste esta recuperación, por favor contacta a soporte inmediatamente.</p>
         <br>
         <p>Gracias,</p>
-        <br>
         <p>El equipo REGSAN</p>
       `,
     };
 
-    await transporter.sendMail(passwordRecoveryEmail);
+    await this.transporter.sendMail(emailOptions);
   }
 
-  async generarContrasenaTemporal(length: number = 8): Promise<string> {
+  private async generarContrasenaTemporal(length: number = 8): Promise<string> {
     const caracteres =
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]{}|;:,.<>?';
     return Array.from(
@@ -126,18 +121,21 @@ export class EmpleadosService {
     ).join('');
   }
 
-  async findFacturacionEmails(): Promise<string[]> {
-    const empleadosFacturacion = await this.empleadoRepository.find({
-      where: { role: 'Facturacion' },
-    });
-
-    if (empleadosFacturacion.length === 0) {
+  private async findEmailsByRole(role: string): Promise<string[]> {
+    const empleados = await this.empleadoRepository.find({ where: { role } });
+    if (empleados.length === 0) {
       throw new NotFoundException(
-        'No se encontraron empleados con rol de Facturación',
+        `No se encontraron empleados con rol de ${role}`,
       );
     }
+    return empleados.map((empleado) => empleado.email);
+  }
 
-    const emails = empleadosFacturacion.map((empleado) => empleado.email);
-    return emails;
+  async findFacturacionEmails(): Promise<string[]> {
+    return this.findEmailsByRole('Facturacion');
+  }
+
+  async findSalesEmails(): Promise<string[]> {
+    return this.findEmailsByRole('Ventas');
   }
 }
