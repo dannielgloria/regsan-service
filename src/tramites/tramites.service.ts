@@ -14,6 +14,16 @@ import { UpdateTramiteFacturacionDto } from 'src/dto/update-tramite-facturacion.
 
 @Injectable()
 export class TramitesService {
+  private transporter = nodemailer.createTransport({
+    host: 'smtp.hostinger.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: 'info@deligrano.com',
+      pass: '2133010323Gl?',
+    },
+  });
+
   constructor(
     @InjectRepository(Tramite)
     private readonly tramiteRepository: Repository<Tramite>,
@@ -23,34 +33,31 @@ export class TramitesService {
   ) {}
 
   async findAll(): Promise<Tramite[]> {
-    return this.tramiteRepository.find({
-      relations: ['client'],
-    });
+    return this.tramiteRepository.find({ relations: ['client'] });
   }
 
   async findByClientBusinessName(businessName: string): Promise<Tramite[]> {
     const client = await this.clienteRepository.findOne({
       where: { business_name: businessName },
     });
-    if (client === null) {
+    if (!client) {
       throw new NotFoundException('Cliente no encontrado');
-    } else {
-      return this.tramiteRepository.find({
-        where: { client_rfc: client.rfc },
-        relations: ['client'],
-      });
     }
+    return this.tramiteRepository.find({
+      where: { client_rfc: client.rfc },
+      relations: ['client'],
+    });
   }
 
   async findByStatus(status: string): Promise<Tramite[]> {
-    const client = await this.tramiteRepository.find({
+    const tramite = await this.tramiteRepository.find({
       where: { status },
       relations: ['client'],
     });
-    if (client.length === 0) {
+    if (tramite.length === 0) {
       throw new NotFoundException('Estatus no encontrado');
     }
-    return client;
+    return tramite;
   }
 
   async findById(id: string): Promise<Tramite> {
@@ -58,75 +65,53 @@ export class TramitesService {
       where: { id },
       relations: ['client'],
     });
-    if (tramite === null) {
-      throw new NotFoundException('Cliente no encontrado');
-    } else {
-      return tramite;
+    if (!tramite) {
+      throw new NotFoundException('Trámite no encontrado');
     }
+    return tramite;
   }
 
   async create(tramite: Tramite): Promise<Tramite> {
-    if (!tramite.id || tramite.id.trim() === '') {
+    if (!tramite.id?.trim()) {
       tramite.id = uuidv4();
     }
+
     const existingTramite = await this.tramiteRepository.findOne({
       where: { id: tramite.id },
     });
+
     if (existingTramite) {
       throw new ConflictException('Trámite con ese ID ya existe');
     }
+
     const newTramite = await this.tramiteRepository.save(tramite);
     await this.sendEmails(newTramite);
     return newTramite;
   }
 
   async update(id: string, tramite: Tramite): Promise<void> {
-    const existingTramite = await this.findById(id);
-    if (!existingTramite) {
-      throw new ConflictException('Tramite no existente');
-    }
+    await this.findById(id);
     await this.tramiteRepository.update(id, tramite);
   }
 
   async remove(id: string): Promise<void> {
-    const existingTramite = await this.findById(id);
-    if (!existingTramite) {
-      throw new ConflictException('Tramite no existente');
-    }
     await this.tramiteRepository.delete(id);
   }
 
   async updateTechnicalData(id: string, technicalData: string): Promise<void> {
     const existingTramite = await this.findById(id);
-    if (!existingTramite) {
-      throw new ConflictException('Tramite no existente');
-    }
-
     existingTramite.technical_data = technicalData;
     await this.tramiteRepository.save(existingTramite);
 
     await this.sendTechnicalDataUpdateEmail(existingTramite);
   }
 
-  async getTechnicalDataById(id: string): Promise<string> {
-    const existingTramite = await this.findById(id);
-    if (!existingTramite) {
-      throw new NotFoundException('Tramite no existente');
-    }
-
-    return existingTramite.technical_data;
-  }
-
   async updateSalesFlag(id: string): Promise<void> {
     const existingTramite = await this.findById(id);
     const empleadosFacturacion =
       await this.empleadosService.findFacturacionEmails();
-    if (!existingTramite) {
-      throw new NotFoundException('Trámite no existente');
-    }
 
     existingTramite.sales_flag = true;
-
     await this.tramiteRepository.save(existingTramite);
 
     await this.sendInvoiceNotification(empleadosFacturacion, existingTramite);
@@ -137,18 +122,12 @@ export class TramitesService {
     updateTramiteDto: UpdateTramiteFacturacionDto,
   ): Promise<void> {
     const existingTramite = await this.findById(id);
-    if (!existingTramite) {
-      throw new NotFoundException('Trámite no existente');
-    }
 
-    existingTramite.billing = updateTramiteDto.billing;
-    existingTramite.payment_status = updateTramiteDto.payment_status;
-    existingTramite.payment_date = updateTramiteDto.payment_date;
-    existingTramite.collection_notes = updateTramiteDto.collection_notes;
+    Object.assign(existingTramite, updateTramiteDto);
 
     await this.tramiteRepository.save(existingTramite);
 
-    if (!existingTramite.client || !existingTramite.client.email) {
+    if (!existingTramite.client?.email) {
       throw new NotFoundException('Cliente asociado no tiene un email válido');
     }
 
@@ -159,26 +138,25 @@ export class TramitesService {
     const client = await this.clienteRepository.findOne({
       where: { rfc: tramite.client_rfc },
     });
-
     if (!client) return;
 
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 587, // o 465 para SSL
-      secure: false, // true para puerto 465, false para otros puertos
-      auth: {
-        user: 'info@deligrano.com',
-        pass: '2133010323Gl?',
-      },
-    });
+    const [clientMailOptions, danielMailOptions] = this.generateEmailOptions(
+      client,
+      tramite,
+    );
 
-    // Email to the client
+    await Promise.all([
+      this.transporter.sendMail(clientMailOptions),
+      this.transporter.sendMail(danielMailOptions),
+    ]);
+  }
+
+  private generateEmailOptions(client: Cliente, tramite: Tramite) {
     const clientMailOptions = {
       from: 'info@deligrano.com',
       to: client.email,
       subject: 'Nuevo Trámite Registrado',
-      html: `
-        <p>Hola ${client.contact_first_name} ${client.contact_last_name},</p>
+      html: `<p>Hola ${client.contact_first_name} ${client.contact_last_name},</p>
         <p>Se ha registrado un nuevo trámite con ID ${tramite.id}.</p>
         <p>Información del trámite:</p>
         <table border="1" cellpadding="5" cellspacing="0">
@@ -254,11 +232,9 @@ export class TramitesService {
             <td><strong>Información Adicional</strong></td>
             <td>${tramite.additional_information}</td>
           </tr>
-        </table>
-      `,
+        </table>`,
     };
 
-    // Email to Daniel Gloria
     const danielMailOptions = {
       from: 'info@deligrano.com',
       to: 'danniel.gloria@gmail.com',
@@ -266,26 +242,14 @@ export class TramitesService {
       text: `Se ha registrado un nuevo trámite para el cliente ${client.business_name} con ID de tramite ${tramite.id}.`,
     };
 
-    await transporter.sendMail(clientMailOptions);
-    await transporter.sendMail(danielMailOptions);
+    return [clientMailOptions, danielMailOptions];
   }
 
   private async sendTechnicalDataUpdateEmail(tramite: Tramite) {
     const client = await this.clienteRepository.findOne({
       where: { rfc: tramite.client_rfc },
     });
-
     if (!client) return;
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'info@deligrano.com',
-        pass: '2133010323Gl?',
-      },
-    });
 
     const mailOptions = {
       from: 'info@deligrano.com',
@@ -298,22 +262,13 @@ export class TramitesService {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    await this.transporter.sendMail(mailOptions);
   }
+
   async sendInvoiceNotification(
     emails: string[],
     tramite: Tramite,
   ): Promise<void> {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 587, // o 465 para SSL
-      secure: false, // true para puerto 465, false para otros puertos
-      auth: {
-        user: 'info@deligrano.com',
-        pass: '2133010323Gl?',
-      },
-    });
-
     const mailOptions = {
       from: 'info@deligrano.com',
       to: emails,
@@ -337,23 +292,14 @@ export class TramitesService {
         <p>El equipo de REGSAN</p>
       `,
     };
-    await transporter.sendMail(mailOptions);
+
+    await this.transporter.sendMail(mailOptions);
   }
 
   private async sendBillingUpdateEmail(
     tramite: Tramite,
     client: Cliente,
   ): Promise<void> {
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.hostinger.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'info@deligrano.com',
-        pass: '2133010323Gl?',
-      },
-    });
-
     const mailOptions = {
       from: 'info@deligrano.com',
       to: client.email,
@@ -369,6 +315,6 @@ export class TramitesService {
       `,
     };
 
-    await transporter.sendMail(mailOptions);
+    await this.transporter.sendMail(mailOptions);
   }
 }
