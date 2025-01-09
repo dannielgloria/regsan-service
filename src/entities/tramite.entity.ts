@@ -13,6 +13,9 @@ export class Tramite {
   @JoinColumn({ name: 'client_rfc' })
   client: Cliente;
 
+  @Column({ type: 'int', unique: true })
+  number: number;
+
   @Column({ type: 'varchar', length: 100 })
   distinctive_denomination: string;
 
