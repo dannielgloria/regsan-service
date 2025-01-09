@@ -28,8 +28,8 @@ export class CreateTramiteDto {
   })
   service_name: string;
 
-  @ApiProperty({ example: 1000.0, description: 'Valor de entrada' })
-  input_value: number;
+  @ApiProperty({ example: 'NA', description: 'Valor de entrada' })
+  input_value: string;
 
   @ApiProperty({
     example: 'Descripción del Tipo',

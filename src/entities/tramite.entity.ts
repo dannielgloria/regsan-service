@@ -28,8 +28,8 @@ export class Tramite {
   @Column({ type: 'varchar', length: 100 })
   service_name: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  input_value: number;
+  @Column({ type: 'varchar', length: 100 })
+  input_value: string;
 
   @Column({ type: 'varchar', length: 100 })
   type_description: string;
