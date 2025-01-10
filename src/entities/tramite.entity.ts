@@ -58,6 +58,15 @@ export class Tramite {
   @Column({ type: 'varchar', length: 50 })
   cofepris_status: string;
 
+  @Column({ type: 'varchar', length: 100 })
+  cofepris_status_health_registration_number: string;
+
+  @Column({ type: 'varchar', length: 100 })
+  cofepris_status_registrer_number: string;
+
+  @Column({ type: 'date' })
+  cofepris_status_prevention_response: Date;
+
   @Column({ type: 'varchar', length: 50 })
   cofepris_entry_number: string;
 
