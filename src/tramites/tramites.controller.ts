@@ -137,6 +137,12 @@ export class TramitesController {
       tramite.completion_percentage = updateTramiteDto.completion_percentage;
       tramite.cofepris_entry_date = updateTramiteDto.cofepris_entry_date;
       tramite.cofepris_status = updateTramiteDto.cofepris_status;
+      tramite.cofepris_status_health_registration_number =
+        updateTramiteDto.cofepris_status_health_registration_number;
+      tramite.cofepris_status_registrer_number =
+        updateTramiteDto.cofepris_status_registrer_number;
+      tramite.cofepris_status_prevention_response =
+        updateTramiteDto.cofepris_status_prevention_response;
       tramite.cofepris_entry_number = updateTramiteDto.cofepris_entry_number;
       tramite.cofepris_link = updateTramiteDto.cofepris_link;
       tramite.assigned_consultant = updateTramiteDto.assigned_consultant;

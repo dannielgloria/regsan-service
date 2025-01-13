@@ -13,6 +13,9 @@ export class Tramite {
   @JoinColumn({ name: 'client_rfc' })
   client: Cliente;
 
+  @Column({ type: 'int', unique: true })
+  number: number;
+
   @Column({ type: 'varchar', length: 100 })
   distinctive_denomination: string;
 
@@ -25,8 +28,8 @@ export class Tramite {
   @Column({ type: 'varchar', length: 100 })
   service_name: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  input_value: number;
+  @Column({ type: 'varchar', length: 100 })
+  input_value: string;
 
   @Column({ type: 'varchar', length: 100 })
   type_description: string;
@@ -54,6 +57,15 @@ export class Tramite {
 
   @Column({ type: 'varchar', length: 50 })
   cofepris_status: string;
+
+  @Column({ type: 'varchar', length: 100 })
+  cofepris_status_health_registration_number: string;
+
+  @Column({ type: 'varchar', length: 100 })
+  cofepris_status_registrer_number: string;
+
+  @Column({ type: 'date' })
+  cofepris_status_prevention_response: Date;
 
   @Column({ type: 'varchar', length: 50 })
   cofepris_entry_number: string;

@@ -8,22 +8,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Tramite } from '../entities/tramite.entity';
 import { Cliente } from '../entities/cliente.entity';
-import * as nodemailer from 'nodemailer';
 import { EmpleadosService } from 'src/empleados/empleados.service';
 import { UpdateTramiteFacturacionDto } from 'src/dto/update-tramite-facturacion.dto';
+import transporter from 'src/config/configurationMail';
 
 @Injectable()
 export class TramitesService {
-  private transporter = nodemailer.createTransport({
-    host: 'smtp.hostinger.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: 'info@deligrano.com',
-      pass: '2133010323Gl?',
-    },
-  });
-
   constructor(
     @InjectRepository(Tramite)
     private readonly tramiteRepository: Repository<Tramite>,
@@ -162,8 +152,8 @@ export class TramitesService {
     );
 
     await Promise.all([
-      this.transporter.sendMail(clientMailOptions),
-      this.transporter.sendMail(danielMailOptions),
+      transporter.sendMail(clientMailOptions),
+      transporter.sendMail(danielMailOptions),
     ]);
   }
 
@@ -287,7 +277,7 @@ export class TramitesService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
   }
 
   async sendInvoiceNotification(
@@ -318,7 +308,7 @@ export class TramitesService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
   }
 
   private async sendBillingUpdateEmail(
@@ -340,6 +330,6 @@ export class TramitesService {
       `,
     };
 
-    await this.transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
   }
 }

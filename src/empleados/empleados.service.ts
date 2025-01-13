@@ -7,20 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Empleado } from '../entities/empleado.entity';
 import * as bcrypt from 'bcryptjs';
-import * as nodemailer from 'nodemailer';
+import transporter from 'src/config/configurationMail';
 
 @Injectable()
 export class EmpleadosService {
-  private readonly transporter = nodemailer.createTransport({
-    host: 'smtp.hostinger.com',
-    port: 587,
-    secure: false, // true para puerto 465, false para otros puertos
-    auth: {
-      user: 'info@deligrano.com',
-      pass: '2133010323Gl?',
-    },
-  });
-
   constructor(
     @InjectRepository(Empleado)
     private readonly empleadoRepository: Repository<Empleado>,
@@ -109,7 +99,7 @@ export class EmpleadosService {
       `,
     };
 
-    await this.transporter.sendMail(emailOptions);
+    await transporter.sendMail(emailOptions);
   }
 
   private async generarContrasenaTemporal(length: number = 8): Promise<string> {
